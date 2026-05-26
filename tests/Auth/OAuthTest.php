@@ -649,6 +649,7 @@ final class OAuthTest extends BaseTestCase
         $this->assertEquals($this->offlineSessionId, $session->getId());
         $this->assertFalse($session->isOnline());
         $this->assertEquals('shpat_expiring_token', $session->getAccessToken());
+        $this->assertEquals('read_products', $session->getScope());
         $this->assertEquals('shprt_refresh_token', $session->getRefreshToken());
 
         $expiresTs = (int) $session->getExpires()->format('U');

@@ -139,7 +139,7 @@ class OAuth
 
         if ($session->isOnline()) {
             /** @var AccessTokenOnlineResponse $response */
-            $session->setExpires(time() + $response->getExpiresIn());
+            $session->setExpires($now + $response->getExpiresIn());
             $session->setOnlineAccessInfo($response->getAssociatedUser());
 
             // If this is an online session in an embedded app, we replace it with a session that can be loaded from a
@@ -150,10 +150,11 @@ class OAuth
             }
         }
 
+        $now = time();
         if ($response instanceof AccessTokenOfflineExpiringResponse) {
-            $session->setExpires(time() + $response->getExpiresIn());
+            $session->setExpires($now + $response->getExpiresIn());
             $session->setRefreshToken($response->getRefreshToken());
-            $session->setRefreshTokenExpiresAt(time() + $response->getRefreshTokenExpiresIn());
+            $session->setRefreshTokenExpiresAt($now + $response->getRefreshTokenExpiresIn());
         }
 
         $sessionStored = Context::$SESSION_STORAGE->storeSession($session);
@@ -413,7 +414,7 @@ class OAuth
      * @param array  $query The URL query params from the OAuth callback
      * @param string $shop  The request shop
      *
-     * @return AccessTokenResponse|AccessTokenOnlineResponse The access token exchanged for the OAuth code
+     * @return AccessTokenResponse|AccessTokenOnlineResponse|AccessTokenOfflineExpiringResponse The access token exchanged for the OAuth code
      * @throws HttpRequestException
      */
     private static function fetchAccessToken(array $query, string $shop)
