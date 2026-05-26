@@ -460,6 +460,51 @@ final class OAuthTest extends BaseTestCase
         $this->assertTrue($wasCallbackCalled);
     }
 
+    public function testBeginAddsExpiringParamForOfflineWhenFlagSet(): void
+    {
+        Context::$USE_EXPIRING_TOKENS = true;
+
+        $cookiesSet = [];
+        $cookieCallback = function (\Shopify\Auth\OAuthCookie $cookie) use (&$cookiesSet) {
+            $cookiesSet[$cookie->getName()] = $cookie;
+            return !empty($cookie->getValue());
+        };
+
+        $returnUrl = OAuth::begin('shopname', '/redirect', false, $cookieCallback);
+
+        $this->assertStringContainsString('expiring=1', $returnUrl);
+    }
+
+    public function testBeginDoesNotAddExpiringParamForOnlineEvenWhenFlagSet(): void
+    {
+        Context::$USE_EXPIRING_TOKENS = true;
+
+        $cookiesSet = [];
+        $cookieCallback = function (\Shopify\Auth\OAuthCookie $cookie) use (&$cookiesSet) {
+            $cookiesSet[$cookie->getName()] = $cookie;
+            return !empty($cookie->getValue());
+        };
+
+        $returnUrl = OAuth::begin('shopname', '/redirect', true, $cookieCallback);
+
+        $this->assertStringNotContainsString('expiring=1', $returnUrl);
+    }
+
+    public function testBeginDoesNotAddExpiringParamWhenFlagFalse(): void
+    {
+        Context::$USE_EXPIRING_TOKENS = false;
+
+        $cookiesSet = [];
+        $cookieCallback = function (\Shopify\Auth\OAuthCookie $cookie) use (&$cookiesSet) {
+            $cookiesSet[$cookie->getName()] = $cookie;
+            return !empty($cookie->getValue());
+        };
+
+        $returnUrl = OAuth::begin('shopname', '/redirect', false, $cookieCallback);
+
+        $this->assertStringNotContainsString('expiring=1', $returnUrl);
+    }
+
     public function testGetCurrentSessionIdRaisesCookieNotFoundException()
     {
         Context::$IS_EMBEDDED_APP = false;

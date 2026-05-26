@@ -89,6 +89,10 @@ class OAuth
             'grant_options[]' => $grantOptions,
         ];
 
+        if (!$isOnline && Context::$USE_EXPIRING_TOKENS) {
+            $query['expiring'] = '1';
+        }
+
         return "https://{$sanitizedShop}/admin/oauth/authorize?" . http_build_query($query);
     }
 
