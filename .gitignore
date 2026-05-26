@@ -3,3 +3,6 @@
 /vendor/
 .idea
 src/.last_api_deprecation_warning
+.claude
+CLAUDE.md
+docs/superpowers
