@@ -45,6 +45,9 @@ class Context
     /** @var string[] */
     public static $CUSTOM_SHOP_DOMAINS = null;
 
+    /** @var bool */
+    public static $USE_EXPIRING_TOKENS = false;
+
     /** @var int */
     public static $RETRY_TIME_IN_SECONDS = 1;
     /** @var HttpClientFactory */
@@ -68,6 +71,7 @@ class Context
      * @param LoggerInterface|null $logger                          App logger, so the library can add its own logs to
      *                                                              it
      * @param string[]             $customShopDomains               One or more regexps to use when validating domains
+     * @param bool                 $useExpiringTokens               Whether to request expiring offline tokens
      *
      * @throws MissingArgumentException
      */
@@ -83,7 +87,8 @@ class Context
         ?string $privateAppStorefrontAccessToken = null,
         string $userAgentPrefix = '',
         ?LoggerInterface $logger = null,
-        array $customShopDomains = []
+        array $customShopDomains = [],
+        bool $useExpiringTokens = false
     ): void {
         $authScopes = new Scopes($scopes);
 
@@ -133,6 +138,7 @@ class Context
         self::$USER_AGENT_PREFIX = $userAgentPrefix;
         self::$LOGGER = $logger;
         self::$CUSTOM_SHOP_DOMAINS = $customShopDomains;
+        self::$USE_EXPIRING_TOKENS = $useExpiringTokens;
 
         self::$IS_INITIALIZED = true;
     }

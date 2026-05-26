@@ -275,4 +275,23 @@ final class ContextTest extends BaseTestCase
 
         $this->assertEquals($domains, Context::$CUSTOM_SHOP_DOMAINS);
     }
+
+    public function testUseExpiringTokensDefaultsFalse(): void
+    {
+        $this->assertFalse(Context::$USE_EXPIRING_TOKENS);
+    }
+
+    public function testUseExpiringTokensCanBeSetTrue(): void
+    {
+        Context::initialize(
+            apiKey: 'ash',
+            apiSecretKey: self::TEST_API_SECRET,
+            scopes: ['sleepy', 'kitty'],
+            hostName: 'www.my-friends-cats.com',
+            sessionStorage: new MockSessionStorage(),
+            apiVersion: self::TEST_API_VERSION,
+            useExpiringTokens: true,
+        );
+        $this->assertTrue(Context::$USE_EXPIRING_TOKENS);
+    }
 }
