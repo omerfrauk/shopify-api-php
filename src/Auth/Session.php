@@ -22,6 +22,10 @@ class Session
     private $accessToken = null;
     /** @var AccessTokenOnlineUserInfo|null */
     private $onlineAccessInfo = null;
+    /** @var string|null */
+    private $refreshToken = null;
+    /** @var DateTime|null */
+    private $refreshTokenExpiresAt = null;
 
     public function __construct(
         private string $id,
@@ -87,6 +91,22 @@ class Session
         return $this->onlineAccessInfo;
     }
 
+    /**
+     * @return string|null
+     */
+    public function getRefreshToken()
+    {
+        return $this->refreshToken;
+    }
+
+    /**
+     * @return DateTime|null
+     */
+    public function getRefreshTokenExpiresAt()
+    {
+        return $this->refreshTokenExpiresAt;
+    }
+
     public function setScope(string $scope): void
     {
         $this->scope = $scope;
@@ -122,6 +142,31 @@ class Session
         $this->onlineAccessInfo = $onlineAccessInfo;
     }
 
+    public function setRefreshToken(string $refreshToken): void
+    {
+        $this->refreshToken = $refreshToken;
+    }
+
+    /**
+     * @param string|int|DateTime $expiresAt
+     *
+     * @throws Exception
+     */
+    public function setRefreshTokenExpiresAt($expiresAt): void
+    {
+        $date = null;
+        if ($expiresAt) {
+            if (is_string($expiresAt)) {
+                $date = new DateTime($expiresAt);
+            } elseif (is_numeric($expiresAt)) {
+                $date = new DateTime("@$expiresAt");
+            } else {
+                $date = $expiresAt;
+            }
+        }
+        $this->refreshTokenExpiresAt = $date;
+    }
+
     /**
      * Creates a clone of the current session with a new id.
      *
@@ -136,6 +181,8 @@ class Session
         $newSession->expires = $this->expires;
         $newSession->accessToken = $this->accessToken;
         $newSession->onlineAccessInfo = $this->onlineAccessInfo;
+        $newSession->refreshToken = $this->refreshToken;
+        $newSession->refreshTokenExpiresAt = $this->refreshTokenExpiresAt;
 
         return $newSession;
     }

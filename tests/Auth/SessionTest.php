@@ -133,4 +133,42 @@ final class SessionTest extends BaseTestCase
 
         $this->assertFalse($session->isValid());
     }
+
+    public function testRefreshTokenFieldsDefaultNull(): void
+    {
+        $session = new Session('id', 'test.myshopify.com', false, 'state');
+        $this->assertNull($session->getRefreshToken());
+        $this->assertNull($session->getRefreshTokenExpiresAt());
+    }
+
+    public function testSetAndGetRefreshToken(): void
+    {
+        $session = new Session('id', 'test.myshopify.com', false, 'state');
+        $session->setRefreshToken('shprt_abc');
+        $this->assertEquals('shprt_abc', $session->getRefreshToken());
+    }
+
+    public function testSetAndGetRefreshTokenExpiresAt(): void
+    {
+        $session = new Session('id', 'test.myshopify.com', false, 'state');
+        $ts = time() + 7776000;
+        $session->setRefreshTokenExpiresAt($ts);
+        $this->assertEquals($ts, (int) $session->getRefreshTokenExpiresAt()->format('U'));
+    }
+
+    public function testCloneCopiesRefreshTokenFields(): void
+    {
+        $session = new Session('id', 'test.myshopify.com', false, 'state');
+        $session->setRefreshToken('shprt_abc');
+        $session->setRefreshTokenExpiresAt(time() + 7776000);
+
+        $cloned = $session->clone('new-id');
+
+        $this->assertEquals('new-id', $cloned->getId());
+        $this->assertEquals('shprt_abc', $cloned->getRefreshToken());
+        $this->assertEquals(
+            $session->getRefreshTokenExpiresAt()->format('U'),
+            $cloned->getRefreshTokenExpiresAt()->format('U')
+        );
+    }
 }
