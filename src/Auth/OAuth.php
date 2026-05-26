@@ -138,6 +138,7 @@ class OAuth
         $session->setAccessToken($response->getAccessToken());
         $session->setScope($response->getScope());
 
+        $now = time();
         if ($session->isOnline()) {
             /** @var AccessTokenOnlineResponse $response */
             $session->setExpires($now + $response->getExpiresIn());
@@ -150,8 +151,6 @@ class OAuth
                 $session = $session->clone($jwtSessionId);
             }
         }
-
-        $now = time();
         if ($response instanceof AccessTokenOfflineExpiringResponse) {
             $session->setExpires($now + $response->getExpiresIn());
             $session->setRefreshToken($response->getRefreshToken());
@@ -470,7 +469,8 @@ class OAuth
      * @param array  $query The URL query params from the OAuth callback
      * @param string $shop  The request shop
      *
-     * @return AccessTokenResponse|AccessTokenOnlineResponse|AccessTokenOfflineExpiringResponse The access token exchanged for the OAuth code
+     * @return AccessTokenResponse|AccessTokenOnlineResponse|AccessTokenOfflineExpiringResponse
+     *         The access token exchanged for the OAuth code
      * @throws HttpRequestException
      */
     private static function fetchAccessToken(array $query, string $shop)

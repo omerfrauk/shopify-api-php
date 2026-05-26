@@ -756,6 +756,14 @@ final class OAuthTest extends BaseTestCase
                 $this->buildMockHttpResponse(400, ['error' => 'invalid_grant']),
                 "https://test-shop.myshopify.io/admin/oauth/access_token",
                 "POST",
+                "^Shopify Admin API Library for PHP v",
+                ['Content-Type: application/json'],
+                json_encode([
+                    'client_id'     => 'ash',
+                    'client_secret' => self::TEST_API_SECRET,
+                    'grant_type'    => 'refresh_token',
+                    'refresh_token' => 'shprt_old',
+                ]),
             ),
         ]);
 
