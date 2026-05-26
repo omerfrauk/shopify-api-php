@@ -680,6 +680,90 @@ final class OAuthTest extends BaseTestCase
         $this->assertEquals(7776000, $response->getRefreshTokenExpiresIn());
     }
 
+    public function testRefreshTokenSuccess(): void
+    {
+        /** @var \ShopifyTest\Auth\MockSessionStorage $storage */
+        $storage = Context::$SESSION_STORAGE;
+
+        $session = new \Shopify\Auth\Session($this->offlineSessionId, $this->domain, false, '');
+        $session->setAccessToken('shpat_old');
+        $session->setRefreshToken('shprt_old');
+        $session->setRefreshTokenExpiresAt(time() + 7776000);
+        $storage->storeSession($session);
+
+        $newResponse = [
+            'access_token'             => 'shpat_new',
+            'scope'                    => 'read_products',
+            'expires_in'               => 3600,
+            'refresh_token'            => 'shprt_new',
+            'refresh_token_expires_in' => 7776000,
+        ];
+
+        $this->mockTransportRequests([
+            new MockRequest(
+                $this->buildMockHttpResponse(200, $newResponse),
+                "https://test-shop.myshopify.io/admin/oauth/access_token",
+                "POST",
+                "^Shopify Admin API Library for PHP v",
+                ['Content-Type: application/json'],
+                json_encode([
+                    'client_id'     => 'ash',
+                    'client_secret' => self::TEST_API_SECRET,
+                    'grant_type'    => 'refresh_token',
+                    'refresh_token' => 'shprt_old',
+                ]),
+            ),
+        ]);
+
+        $before = time();
+        $updated = OAuth::refreshToken($session);
+        $after = time();
+
+        $this->assertEquals('shpat_new', $updated->getAccessToken());
+        $this->assertEquals('read_products', $updated->getScope());
+        $this->assertEquals('shprt_new', $updated->getRefreshToken());
+
+        $expiresTs = (int) $updated->getExpires()->format('U');
+        $this->assertGreaterThanOrEqual($before + 3600, $expiresTs);
+        $this->assertLessThanOrEqual($after + 3600, $expiresTs);
+
+        // Verify persisted in storage
+        $stored = $storage->loadSession($this->offlineSessionId);
+        $this->assertEquals('shpat_new', $stored->getAccessToken());
+        $this->assertEquals('shprt_new', $stored->getRefreshToken());
+    }
+
+    public function testRefreshTokenThrowsWhenNoRefreshToken(): void
+    {
+        $session = new \Shopify\Auth\Session($this->offlineSessionId, $this->domain, false, '');
+        $session->setAccessToken('shpat_old');
+        // no refresh token set
+
+        $this->expectException(\Shopify\Exception\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Session does not have a refresh token');
+
+        OAuth::refreshToken($session);
+    }
+
+    public function testRefreshTokenThrowsOnHttpFailure(): void
+    {
+        $session = new \Shopify\Auth\Session($this->offlineSessionId, $this->domain, false, '');
+        $session->setAccessToken('shpat_old');
+        $session->setRefreshToken('shprt_old');
+
+        $this->mockTransportRequests([
+            new MockRequest(
+                $this->buildMockHttpResponse(400, ['error' => 'invalid_grant']),
+                "https://test-shop.myshopify.io/admin/oauth/access_token",
+                "POST",
+            ),
+        ]);
+
+        $this->expectException(\Shopify\Exception\TokenRefreshException::class);
+
+        OAuth::refreshToken($session);
+    }
+
     private function encodeJwtPayload(): string
     {
         $payload = [

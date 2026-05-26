@@ -23,6 +23,7 @@ use Shopify\Exception\SessionStorageException;
 use Shopify\Utils;
 use Ramsey\Uuid\Uuid;
 use Shopify\Auth\AccessTokenOfflineExpiringResponse;
+use Shopify\Exception\TokenRefreshException;
 
 /**
  * Provides methods to perform OAuth with Shopify.
@@ -201,6 +202,61 @@ class OAuth
     public static function getOfflineSessionId(string $shop): string
     {
         return "offline_{$shop}";
+    }
+
+    /**
+     * Exchanges a session's refresh token for a new access token and refresh token pair.
+     * Updates and persists the session in storage.
+     *
+     * @param Session $session The session holding the current refresh token
+     *
+     * @return Session The updated session
+     * @throws InvalidArgumentException  If the session has no refresh token
+     * @throws TokenRefreshException     If Shopify returns a non-200 response
+     * @throws SessionStorageException   If the updated session cannot be persisted
+     * @throws UninitializedContextException
+     */
+    public static function refreshToken(Session $session): Session
+    {
+        Context::throwIfUninitialized();
+
+        if (!$session->getRefreshToken()) {
+            throw new InvalidArgumentException('Session does not have a refresh token');
+        }
+
+        $post = [
+            'client_id'     => Context::$API_KEY,
+            'client_secret' => Context::$API_SECRET_KEY,
+            'grant_type'    => 'refresh_token',
+            'refresh_token' => $session->getRefreshToken(),
+        ];
+
+        $client   = new Http($session->getShop());
+        $response = self::requestAccessToken($client, $post);
+
+        if ($response->getStatusCode() !== 200) {
+            throw new TokenRefreshException(
+                "Failed to refresh access token: " . json_encode($response->getDecodedBody())
+            );
+        }
+
+        $body = $response->getDecodedBody();
+        $now  = time();
+
+        $session->setScope($body['scope']);
+        $session->setAccessToken($body['access_token']);
+        $session->setExpires($now + $body['expires_in']);
+        $session->setRefreshToken($body['refresh_token']);
+        $session->setRefreshTokenExpiresAt($now + $body['refresh_token_expires_in']);
+
+        $stored = Context::$SESSION_STORAGE->storeSession($session);
+        if (!$stored) {
+            throw new SessionStorageException(
+                'Refreshed session could not be saved. Please check your session storage functionality.'
+            );
+        }
+
+        return $session;
     }
 
     /**
