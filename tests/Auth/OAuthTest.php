@@ -60,6 +60,15 @@ final class OAuthTest extends BaseTestCase
         'scope' => 'read_products',
     ];
 
+    /** @var array */
+    private $expiringOfflineResponse = [
+        'access_token' => 'shpat_expiring_token',
+        'scope'        => 'read_products',
+        'expires_in'   => 3600,
+        'refresh_token'         => 'shprt_refresh_token',
+        'refresh_token_expires_in' => 7776000,
+    ];
+
     /**
      * @dataProvider validBeginProvider
      */
@@ -598,6 +607,59 @@ final class OAuthTest extends BaseTestCase
         }
 
         return $session;
+    }
+
+    public function testCallbackSetsExpiringOfflineSession(): void
+    {
+        /** @var \ShopifyTest\Auth\MockSessionStorage $storage */
+        $storage = Context::$SESSION_STORAGE;
+
+        $cookiesSet = [];
+        $cookieCallback = function (\Shopify\Auth\OAuthCookie $cookie) use (&$cookiesSet) {
+            $cookiesSet[$cookie->getName()] = $cookie;
+            return !empty($cookie->getValue());
+        };
+
+        $this->mockTransportRequests([
+            new MockRequest(
+                $this->buildMockHttpResponse(200, $this->expiringOfflineResponse),
+                "https://test-shop.myshopify.io/admin/oauth/access_token",
+                "POST",
+                "^Shopify Admin API Library for PHP v",
+                ['Content-Type: application/json'],
+                json_encode($this->codeRequestBody),
+            ),
+        ]);
+
+        $mockCookies = [
+            OAuth::STATE_SIG_COOKIE_NAME => hash_hmac('sha256', $this->state, Context::$API_SECRET_KEY),
+            OAuth::STATE_COOKIE_NAME => $this->state,
+        ];
+        $mockQuery = [
+            'shop' => $this->domain,
+            'state' => '1234',
+            'code'  => 'real_code',
+            'hmac'  => 'b104858f49be2f9dda979fb07f107e0ab337e0e0f32682560dbe9f03c25b5129',
+        ];
+
+        $before = time();
+        $session = OAuth::callback($mockCookies, $mockQuery, $cookieCallback);
+        $after = time();
+
+        $this->assertEquals($this->offlineSessionId, $session->getId());
+        $this->assertFalse($session->isOnline());
+        $this->assertEquals('shpat_expiring_token', $session->getAccessToken());
+        $this->assertEquals('shprt_refresh_token', $session->getRefreshToken());
+
+        $expiresTs = (int) $session->getExpires()->format('U');
+        $this->assertGreaterThanOrEqual($before + 3600, $expiresTs);
+        $this->assertLessThanOrEqual($after + 3600, $expiresTs);
+
+        $refreshExpiresTs = (int) $session->getRefreshTokenExpiresAt()->format('U');
+        $this->assertGreaterThanOrEqual($before + 7776000, $refreshExpiresTs);
+        $this->assertLessThanOrEqual($after + 7776000, $refreshExpiresTs);
+
+        $this->assertCount(1, $storage->getAllSessions());
     }
 
     public function testBuildAccessTokenOfflineExpiringResponse(): void

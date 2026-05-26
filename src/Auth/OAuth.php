@@ -22,6 +22,7 @@ use Shopify\Exception\OAuthSessionNotFoundException;
 use Shopify\Exception\SessionStorageException;
 use Shopify\Utils;
 use Ramsey\Uuid\Uuid;
+use Shopify\Auth\AccessTokenOfflineExpiringResponse;
 
 /**
  * Provides methods to perform OAuth with Shopify.
@@ -147,6 +148,12 @@ class OAuth
                 $jwtSessionId = self::getJwtSessionId($session->getShop(), $session->getOnlineAccessInfo()->getId());
                 $session = $session->clone($jwtSessionId);
             }
+        }
+
+        if ($response instanceof AccessTokenOfflineExpiringResponse) {
+            $session->setExpires(time() + $response->getExpiresIn());
+            $session->setRefreshToken($response->getRefreshToken());
+            $session->setRefreshTokenExpiresAt(time() + $response->getRefreshTokenExpiresIn());
         }
 
         $sessionStored = Context::$SESSION_STORAGE->storeSession($session);
@@ -426,6 +433,8 @@ class OAuth
         $body = $response->getDecodedBody();
         if (array_key_exists('associated_user', $body) && $body['associated_user']) {
             return self::buildAccessTokenOnlineResponse($body);
+        } elseif (array_key_exists('refresh_token', $body)) {
+            return self::buildAccessTokenOfflineExpiringResponse($body);
         } else {
             return self::buildAccessTokenResponse($body);
         }
@@ -466,6 +475,22 @@ class OAuth
     private static function buildAccessTokenResponse(array $body): AccessTokenResponse
     {
         return new AccessTokenResponse($body['access_token'], $body['scope']);
+    }
+
+    /**
+     * Builds an expiring offline access token response object
+     *
+     * @param array $body The HTTP response body
+     */
+    private static function buildAccessTokenOfflineExpiringResponse(array $body): AccessTokenOfflineExpiringResponse
+    {
+        return new AccessTokenOfflineExpiringResponse(
+            $body['access_token'],
+            $body['scope'],
+            $body['expires_in'],
+            $body['refresh_token'],
+            $body['refresh_token_expires_in'],
+        );
     }
 
     /**
