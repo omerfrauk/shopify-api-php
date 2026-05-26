@@ -555,6 +555,23 @@ final class OAuthTest extends BaseTestCase
         return $session;
     }
 
+    public function testBuildAccessTokenOfflineExpiringResponse(): void
+    {
+        $response = new \Shopify\Auth\AccessTokenOfflineExpiringResponse(
+            'shpat_abc',
+            'read_products',
+            3600,
+            'shprt_xyz',
+            7776000
+        );
+
+        $this->assertEquals('shpat_abc', $response->getAccessToken());
+        $this->assertEquals('read_products', $response->getScope());
+        $this->assertEquals(3600, $response->getExpiresIn());
+        $this->assertEquals('shprt_xyz', $response->getRefreshToken());
+        $this->assertEquals(7776000, $response->getRefreshTokenExpiresIn());
+    }
+
     private function encodeJwtPayload(): string
     {
         $payload = [
