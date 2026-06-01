@@ -481,6 +481,10 @@ class OAuth
             'code' => $query['code'],
         ];
 
+        if (Context::$USE_EXPIRING_TOKENS) {
+            $post['expiring'] = '1';
+        }
+
         $client = new Http($shop);
         $response = self::requestAccessToken($client, $post);
         if ($response->getStatusCode() !== 200) {
